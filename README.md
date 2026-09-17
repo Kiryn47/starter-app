@@ -33,4 +33,4 @@ pytest -v --cov=app
 
 Le workflow `.github/workflows/ci.yml` exécute automatiquement `flake8` et `pytest` (avec couverture) sur chaque push et pull request vers `main`.
 
-<!-- test étape 3 : vérification du déclenchement sur pull request -->
+<!-- test étape 3 : vérification du déclenchement sur pull request après restriction du push -->
