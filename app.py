@@ -12,7 +12,10 @@ def get_redis_client():
     """Cree un client Redis a partir des variables d'environnement REDIS_HOST/REDIS_PORT."""
     host = os.environ.get("REDIS_HOST", "localhost")
     port = int(os.environ.get("REDIS_PORT", 6379))
-    return redis.Redis(host=host, port=port, decode_responses=True)
+    return redis.Redis(
+        host=host, port=port, decode_responses=True,
+        socket_connect_timeout=2, socket_timeout=2,
+    )
 
 
 def alert_threshold():
@@ -27,12 +30,19 @@ def sanitize_input(value):
 
 @app.route("/health")
 def health():
-    return jsonify(status="ok"), 200
+    try:
+        get_redis_client().ping()
+    except redis.exceptions.RedisError as exc:
+        return jsonify(status="error", redis="down", detail=str(exc)), 503
+    return jsonify(status="ok", redis="up"), 200
 
 
 @app.route("/status")
 def status():
-    return jsonify(service="projet-devops-groupe-demo", version="1.0"), 200
+    return jsonify(
+        service="projet-devops-groupe-demo",
+        version="1.0",
+    ), 200
 
 
 @app.route("/visits")
