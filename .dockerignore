@@ -9,3 +9,5 @@ __pycache__/
 htmlcov/
 .DS_Store
 README.md
+deploy/
+docker-compose.yml
