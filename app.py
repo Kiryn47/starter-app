@@ -1,8 +1,9 @@
 import os
+import time
 
 import redis
-from flask import Flask, Response, jsonify, request
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
+from flask import Flask, Response, g, jsonify, request
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 app = Flask(__name__)
 
@@ -10,6 +11,12 @@ REQUEST_COUNT = Counter(
     "http_requests_total",
     "Nombre total de requetes HTTP",
     ["method", "endpoint", "status"],
+)
+
+REQUEST_LATENCY = Histogram(
+    "http_request_duration_seconds",
+    "Temps de traitement des requetes HTTP",
+    ["method", "endpoint"],
 )
 
 ALERT_THRESHOLD = 25
@@ -41,14 +48,26 @@ def endpoint_label():
     return request.url_rule.rule
 
 
+@app.before_request
+def start_timer():
+    g.start_time = time.perf_counter()
+
+
 @app.after_request
 def record_request(response):
     if request.path != "/metrics":
+        endpoint = endpoint_label()
         REQUEST_COUNT.labels(
             method=request.method,
-            endpoint=endpoint_label(),
+            endpoint=endpoint,
             status=str(response.status_code),
         ).inc()
+        start = g.get("start_time")
+        if start is not None:
+            REQUEST_LATENCY.labels(
+                method=request.method,
+                endpoint=endpoint,
+            ).observe(time.perf_counter() - start)
     return response
 
 
@@ -74,6 +93,11 @@ def status():
         deploy_color=os.environ.get("DEPLOY_COLOR", "unknown"),
         version_sha=os.environ.get("GIT_SHA", "unknown"),
     ), 200
+
+
+@app.route("/simulate-error")
+def simulate_error():
+    return jsonify(status="error", message="erreur simulee"), 500
 
 
 @app.route("/visits")
