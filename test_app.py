@@ -99,3 +99,22 @@ def test_metrics_format_prometheus():
 def test_route_inconnue_regroupee():
     app.test_client().get("/nimporte/quoi/123")
     assert requests_count("unmatched", "404") >= 1
+
+
+def test_simulate_error_renvoie_500():
+    avant = requests_count("/simulate-error", "500")
+    response = app.test_client().get("/simulate-error")
+    assert response.status_code == 500
+    assert requests_count("/simulate-error", "500") == avant + 1
+
+
+def test_histogramme_latence():
+    labels = {"method": "GET", "endpoint": "/status"}
+    avant = REGISTRY.get_sample_value("http_request_duration_seconds_count", labels) or 0
+    app.test_client().get("/status")
+    assert REGISTRY.get_sample_value("http_request_duration_seconds_count", labels) == avant + 1
+
+    data = app.test_client().get("/metrics").data
+    assert b"http_request_duration_seconds_bucket" in data
+    assert b"http_request_duration_seconds_sum" in data
+    assert b"http_request_duration_seconds_count" in data
