@@ -11,3 +11,4 @@ htmlcov/
 README.md
 deploy/
 docker-compose.yml
+monitoring/
