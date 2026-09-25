@@ -1,1 +1,11 @@
-groups: []
+groups:
+  - name: starter-app
+    rules:
+      - alert: TauxErreurEleve
+        expr: (sum(rate(http_requests_total{status=~"5.."}[1m])) or vector(0)) / sum(rate(http_requests_total[1m])) > 0.05
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taux d'erreur superieur a 5%"
+          description: "Taux d'erreur de {{ $value | humanizePercentage }} depuis plus de 30 secondes."
