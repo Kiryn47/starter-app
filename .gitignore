@@ -7,3 +7,4 @@ htmlcov/
 .DS_Store
 deploy/nginx/conf.d/
 deploy/.active_color
+.env
