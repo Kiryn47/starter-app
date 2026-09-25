@@ -1,0 +1,58 @@
+x-app: &app
+  build:
+    context: .
+  image: ${APP_IMAGE:-starter-app}:${IMAGE_TAG:-local}
+  depends_on:
+    redis:
+      condition: service_healthy
+  networks:
+    - app-network
+
+services:
+  app-blue:
+    <<: *app
+    profiles: ["blue"]
+    ports:
+      - "5001:5000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DEPLOY_COLOR=blue
+
+  app-green:
+    <<: *app
+    profiles: ["green"]
+    ports:
+      - "5002:5000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DEPLOY_COLOR=green
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+networks:
+  app-network:
+
+volumes:
+  redis-data:
