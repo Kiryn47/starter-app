@@ -95,3 +95,33 @@ jobs:
           tags: |
             ghcr.io/kiryn47/starter-app:${{ github.sha }}
             ghcr.io/kiryn47/starter-app:latest
+
+  deploy:
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    env:
+      APP_IMAGE: ghcr.io/kiryn47/starter-app
+      IMAGE_TAG: ${{ github.sha }}
+      PULL: "1"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy blue/green
+        run: bash deploy/deploy.sh
+
+      - name: Verification via nginx
+        run: curl -fsS http://localhost:8080/status
