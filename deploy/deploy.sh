@@ -8,6 +8,7 @@ NGINX_DIR="deploy/nginx"
 PULL="${PULL:-0}"
 RETRIES="${RETRIES:-15}"
 DELAY="${DELAY:-2}"
+EXPECTED_SHA="${EXPECTED_SHA:-${IMAGE_TAG:-local}}"
 
 port_of() {
   if [ "$1" = "blue" ]; then echo 5001; else echo 5002; fi
@@ -46,9 +47,11 @@ URL="http://localhost:$(port_of "$NEW")"
 ok=0
 for i in $(seq 1 "$RETRIES"); do
   code="$(curl -s -o /dev/null -w '%{http_code}' "$URL/health" || true)"
-  color="$(curl -fsS "$URL/status" 2>/dev/null | json_field deploy_color || true)"
-  echo "    tentative $i/$RETRIES : /health=$code deploy_color=${color:-?}"
-  if [ "$code" = "200" ] && [ "$color" = "$NEW" ]; then
+  status="$(curl -fsS "$URL/status" 2>/dev/null || true)"
+  color="$(echo "$status" | json_field deploy_color || true)"
+  sha="$(echo "$status" | json_field version_sha || true)"
+  echo "    tentative $i/$RETRIES : /health=$code deploy_color=${color:-?} version_sha=${sha:-?}"
+  if [ "$code" = "200" ] && [ "$color" = "$NEW" ] && [ "$sha" = "$EXPECTED_SHA" ]; then
     ok=1
     break
   fi
@@ -56,7 +59,7 @@ for i in $(seq 1 "$RETRIES"); do
 done
 
 if [ "$ok" != "1" ]; then
-  echo "!!! ECHEC : app-$NEW ne passe pas le smoke test -> rollback"
+  echo "!!! ECHEC : app-$NEW ne passe pas le smoke test (SHA attendu : $EXPECTED_SHA) -> rollback"
   docker compose --profile "$NEW" logs --tail 20 "app-$NEW" || true
   docker compose --profile "$NEW" stop "app-$NEW"
   echo "!!! trafic inchange, couleur active : $ACTIVE"

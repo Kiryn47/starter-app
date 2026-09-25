@@ -22,6 +22,9 @@ COPY . .
 RUN useradd --create-home appuser && chown -R appuser:appuser /app
 USER appuser
 
+ARG GIT_SHA=unknown
+ENV GIT_SHA=$GIT_SHA
+
 EXPOSE 5000
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \

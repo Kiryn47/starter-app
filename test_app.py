@@ -53,3 +53,12 @@ def test_visits_endpoint(monkeypatch):
     second = client.get("/visits").get_json()["visits"]
 
     assert second == first + 1
+
+
+def test_status_expose_couleur_et_sha(monkeypatch):
+    monkeypatch.setenv("DEPLOY_COLOR", "green")
+    monkeypatch.setenv("GIT_SHA", "abc123")
+
+    data = app.test_client().get("/status").get_json()
+    assert data["deploy_color"] == "green"
+    assert data["version_sha"] == "abc123"

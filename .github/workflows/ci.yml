@@ -92,6 +92,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
           tags: |
             ghcr.io/kiryn47/starter-app:${{ github.sha }}
             ghcr.io/kiryn47/starter-app:latest
@@ -108,6 +110,7 @@ jobs:
       APP_IMAGE: ghcr.io/kiryn47/starter-app
       IMAGE_TAG: ${{ github.sha }}
       PULL: "1"
+      EXPECTED_SHA: ${{ github.sha }}
 
     steps:
       - name: Checkout code
