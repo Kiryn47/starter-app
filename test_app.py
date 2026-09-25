@@ -1,5 +1,6 @@
 import fakeredis
 import redis
+from prometheus_client import REGISTRY
 
 import app as app_module
 from app import alert_threshold, sanitize_input, app
@@ -62,3 +63,39 @@ def test_status_expose_couleur_et_sha(monkeypatch):
     data = app.test_client().get("/status").get_json()
     assert data["deploy_color"] == "green"
     assert data["version_sha"] == "abc123"
+
+
+def requests_count(endpoint, status="200"):
+    value = REGISTRY.get_sample_value(
+        "http_requests_total",
+        {"method": "GET", "endpoint": endpoint, "status": status},
+    )
+    return value or 0
+
+
+def test_compteur_incremente_a_chaque_requete():
+    client = app.test_client()
+    avant = requests_count("/status")
+    client.get("/status")
+    client.get("/status")
+    assert requests_count("/status") == avant + 2
+
+
+def test_metrics_ne_se_compte_pas_lui_meme():
+    client = app.test_client()
+    client.get("/metrics")
+    client.get("/metrics")
+    assert requests_count("/metrics") == 0
+
+
+def test_metrics_format_prometheus():
+    app.test_client().get("/status")
+    response = app.test_client().get("/metrics")
+    assert response.status_code == 200
+    assert "text/plain" in response.content_type
+    assert b'http_requests_total{endpoint="/status",method="GET",status="200"}' in response.data
+
+
+def test_route_inconnue_regroupee():
+    app.test_client().get("/nimporte/quoi/123")
+    assert requests_count("unmatched", "404") >= 1

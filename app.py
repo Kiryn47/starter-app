@@ -1,9 +1,16 @@
 import os
 
 import redis
-from flask import Flask, jsonify
+from flask import Flask, Response, jsonify, request
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 
 app = Flask(__name__)
+
+REQUEST_COUNT = Counter(
+    "http_requests_total",
+    "Nombre total de requetes HTTP",
+    ["method", "endpoint", "status"],
+)
 
 ALERT_THRESHOLD = 25
 
@@ -26,6 +33,28 @@ def alert_threshold():
 def sanitize_input(value):
     """Echappe les caracteres dangereux d'une entree utilisateur."""
     return value.replace("<", "&lt;").replace(">", "&gt;")
+
+
+def endpoint_label():
+    if request.url_rule is None:
+        return "unmatched"
+    return request.url_rule.rule
+
+
+@app.after_request
+def record_request(response):
+    if request.path != "/metrics":
+        REQUEST_COUNT.labels(
+            method=request.method,
+            endpoint=endpoint_label(),
+            status=str(response.status_code),
+        ).inc()
+    return response
+
+
+@app.route("/metrics")
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 
 @app.route("/health")
